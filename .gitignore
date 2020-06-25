@@ -1,6 +1,0 @@
-##ignore this file##
-.idea
-node_modules
-certs/192.*
-configs/
-!/configs/*-example.json
