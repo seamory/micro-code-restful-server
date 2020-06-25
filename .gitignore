@@ -2,5 +2,5 @@
 .idea
 node_modules
 certs/192.*
-configs/
+configs/*
 !/configs/*-example.json
