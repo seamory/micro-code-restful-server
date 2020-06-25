@@ -1,0 +1,63 @@
+[
+  {
+    "route": "/queryUsers",
+    "method": "get",
+    "sql": "select * from staff_t where staff_status = '?:status'"
+  },
+  {
+    "route": "/login",
+    "method": "post",
+    "sql": "select * from staff_t where Cast(staff_number as char) = '?:account' and staff_password = '?:password'"
+  },
+  {
+    "route": "/group/getAll",
+    "method": "get",
+    "sql": "select group_t.group_id as group_id, group_t.group_name as group_name, (SELECT count(group_id) from staff_status_t where staff_status_t.group_id = group_t.group_id GROUP BY group_id) as member_count, create_time from group_t where group_t.group_status = '激活'"
+  },
+  {
+    "route": "/group/add",
+    "method": "post",
+    "sql": [
+      "insert into group_t (group_name) values ('?:groupName')",
+      "select group_id from group_t order by create_time desc limit 1"
+    ]
+  },
+  {
+    "route": "/group/close",
+    "method": "delete",
+    "sql": [
+      "update staff_status_t set group_id = 10000000 where member_id in (select temp.member_id from (select member_id from staff_status_t where group_id = ?:groupId) as temp)",
+      "update group_t set group_status = '停用' where group_id = ?:groupId"
+    ]
+  },
+  {
+    "route": "/group/addMember",
+    "method": "post",
+    "sql": "insert into staff_status_t (member_id, group_id) values ('?:memberId', '?:groupId')"
+  },
+  {
+    "route": "/group/moveMember",
+    "method": "post",
+    "sql": "update staff_status_t set group_id = ?:groupId where member_id in (?:memberId)"
+  },
+  {
+    "route": "/group/queryMember",
+    "method": "get",
+    "sql": "select member_id as id, staff_name as username from staff_status_t, staff_t where group_id = ?:groupId and staff_status_t.member_id = staff_t.staff_number"
+  },
+  {
+    "route": "/group/queryUserIn",
+    "method": "get",
+    "sql": "select group_t.* from staff_status_t, group_t where staff_status_t.member_id = ?:id and group_t.group_id = staff_status_t.group_id"
+  },
+  {
+    "route": "/group/get",
+    "method": "get",
+    "sql": "select * from group_t where group_id = ?:groupId"
+  },
+  {
+    "route": "/group/queryUsersNotInWorkGroup",
+    "method": "get",
+    "sql": "SELECT * from staff_t where  staff_number in (SELECT member_id from staff_status_t where group_id = ?:groupId)"
+  }
+]

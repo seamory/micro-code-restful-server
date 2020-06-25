@@ -1,0 +1,21 @@
+{
+    "database": {
+         "host": "192.168.101.253",
+         "port": "3306",
+         "user": "root",
+         "password": "tlxt8888",
+         "database": "tlxt_system_db"
+    },
+    "http": {
+        "listening": "0.0.0.0",
+        "port": "10080"
+    },
+    "https": {
+        "listening_ip": "0.0.0.0",
+        "port": "10443",
+        "cert": {
+            "key": "certs/192.168.101.x.key",
+            "cert": "certs/192.168.101.x.crt"
+        }
+    }
+}
