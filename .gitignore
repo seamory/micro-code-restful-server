@@ -1,6 +1,8 @@
 ##ignore this file##
 .idea
 node_modules
-certs/192.*
-configs/*
-!/configs/*-example.json
+
+*.zip
+certs/
+configs/api-config.js
+configs/config.js

@@ -3,182 +3,174 @@
  */
 'use strict'
 
-const express = require('express')
 const http = require('http')
 const https = require('https')
+const express = require('express')
 const fs = require('fs')
 const mysql = require('mysql')
 const moment = require('moment')
 
-const apiConfig = JSON.parse(fs.readFileSync('./configs/APIConfig.json', { encoding: "utf8", flag: '' }))
-const config = JSON.parse(fs.readFileSync('./configs/Config.json', { encoding: "utf8", flag: '' }))
+const apiConfig = require('./configs/api-config.js')
+const config = require('./configs/config.js')
 
-const app = express()
-app.use(express.json())
-app.use(express.urlencoded({extended: true}))
-app.use((req, res, next) => {
-  console.log('-----------------------' + moment().format('YYYY-MM-DD HH:mm:SS') + '----------------------------')
-  console.log('from: ' + req.hostname + ', url: ' + req.originalUrl + ', method: ' + req.method)
-  console.log("request query:", req.query, "request body:", req.body )
-  next()
-})
 
-app.all('*', function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", req.headers.origin)
-  res.header("Access-Control-Allow-Credentials", true)
-  res.header("Access-Control-Allow-Headers", "x-requested-with,Authorization,Content-Type")
-  res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS")
-  res.header("Content-Type", "application/json;charset=utf-8");
-  if (req.method == 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
+function registerExpress() {
+  const app = express()
 
-app.all('/', (req, res) => {
-  res.send('express is starting, your hostname is:' + req.hostname)
-})
+  app.use(express.json())
+  app.use(express.urlencoded({extended: true}))
+  app.use((req, res, next) => {
+    console.log('-----------------------' + moment().format('YYYY-MM-DD HH:mm:SS') + '----------------------------')
+    console.log('from: ' + req.hostname + ', url: ' + req.originalUrl + ', method: ' + req.method)
+    console.log("request query:", req.query, "request body:", req.body)
+    next()
+  })
 
-const pool = mysql.createPool(config.database)
-
-apiConfig.forEach((item) => {
-  app.all(item.route, (req, res) => {
-
-    if (req.method.toLowerCase() !== 'options') {
-      if (item.method.toLowerCase() && item.method.toLowerCase().search(req.method.toLowerCase()) < 0) {
-        res.status(405).send({status: res.statusCode, data: null, msg: 'request method should be ' + item.method})
-        return
-      }
-    }
-
-    if (typeof item.sql === 'string') {
-      let args = item.sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
-      let sql = item.sql
-      let sqlCheck = []
-      if (args) {
-        console.log('arguments: ' + args.join(', '))
-        args.forEach((arg) => {
-          let reqVal = undefined
-          const sqlArg = arg.slice(2, arg.length)
-          if (item.method.toLowerCase() === 'get') {
-            reqVal = Reflect.get(req.query, sqlArg)
-          } else {
-            reqVal = Reflect.get(req.body, sqlArg)
-          }
-          if (reqVal === undefined) {
-            sqlCheck.push(sqlArg)
-          }
-          sql = sql.replace(arg, reqVal)
-        })
-      }
-      console.log(sql)
-
-      if (sqlCheck.length > 0) {
-        res.status(417).send({ status: res.statusCode, data: null, msg: 'the following parameters are missing: ' + sqlCheck.join(', ') })
-        return
-      }
-
-      pool.getConnection((err, connection) => {
-        if (err) {
-          res.status(500).send({status: res.statusCode, data: null, msg: 'there is an error. ' + err})
-          throw err
-        }
-        connection.query(sql, (error, results, fields) => {
-          if (error) {
-            res.status(500).send({status: res.statusCode, data: null, msg: 'please check out your sql or arguments.'})
-          } else {
-            res.send({status: res.statusCode, data: results, msg: 'success.'})
-          }
-        })
-        connection.release()
-      })
+  app.all('*', function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", req.headers.origin)
+    res.header("Access-Control-Allow-Credentials", true)
+    res.header("Access-Control-Allow-Headers", "x-requested-with,Authorization,Content-Type")
+    res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS")
+    res.header("Content-Type", "application/json;charset=utf-8");
+    if (req.method == 'OPTIONS') {
+      res.sendStatus(200);
     } else {
-      let sqlCheck = []
-      let sqlArray = []
-      item.sql.forEach((sql) => {
+      next();
+    }
+  });
 
-        let args = sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
-        let sqlTemp = sql
-        if (args) {
-          console.log('arguments: ' + args.join(', '))
-          args.forEach((arg) => {
-            let reqVal = undefined
+  app.all('/', (req, res) => {
+    res.send('express is starting, your hostname is:' + req.hostname)
+  })
+
+  return app
+}
+
+function registerAPIRouter(app) {
+  const pool = mysql.createPool(config.database)
+  function assembleSql(req, res, item) {
+    let sql = item.sql
+    let sqlList = []
+    let argsErrorList = []
+    if ('string' === typeof sql) {
+      sqlList.push(sql)
+    } else {
+      sqlList = sql
+    }
+    sqlList.forEach((sql, index) => {
+      let sqlArgs = sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
+      if (sqlArgs) {
+        console.log('arguments: ' + sqlArgs.join(', '))
+        if ('get' === item.method.toLowerCase()) {
+          sqlArgs.forEach((arg) => {
             const sqlArg = arg.slice(2, arg.length)
-            if (item.method.toLowerCase() === 'get') {
-              reqVal = Reflect.get(req.query, sqlArg)
+            let param = Reflect.get(req.query, sqlArg)
+            if (undefined === param) {
+              argsErrorList.push(sqlArg)
             } else {
-              reqVal = Reflect.get(req.body, sqlArg)
+              sql = sql.replace(arg, param)
             }
-            if (reqVal === undefined) {
-              sqlCheck.push(sqlArg)
+          })
+        } else {
+          sqlArgs.forEach((arg) => {
+            const sqlArg = arg.slice(2, arg.length)
+            let param = Reflect.get(req.query, sqlArg)
+            let field = Reflect.get(req.body, sqlArg)
+            if (undefined === field && undefined === param) {
+              argsErrorList.push(sqlArg)
+            } else if (field) {
+              sql = sql.replace(arg, field)
+            } else if (param) {
+              sql = sql.replace(arg, field)
             }
-            sqlTemp = sqlTemp.replace(arg, reqVal)
           })
         }
-        sqlArray.push(sqlTemp)
-        console.log(sqlTemp)
-      })
-
-      if (sqlCheck.length > 0) {
-        res.status(417).send({ status: res.statusCode, data: null, msg: 'the following parameters are missing: ' + sqlCheck.join(', ') })
-        return
       }
-
-      pool.getConnection((err, connection) => {
-        if (err) {
-          throw err
+      sqlList[index] = sql
+      console.log(sql)
+    })
+    if (argsErrorList.length > 0) {
+      res.status(417).send({
+        status: res.statusCode,
+        data: null,
+        msg: 'the following parameters are missing: ' + argsErrorList.join(', ')
+      })
+      return []
+    }
+    return sqlList
+  }
+  apiConfig.forEach((item) => {
+    app.all(item.route, (req, res) => {
+      if (req.method.toLowerCase() !== 'options') {
+        if (item.method.toLowerCase() && item.method.toLowerCase().search(req.method.toLowerCase()) < 0) {
+          res.status(405).send({status: res.statusCode, data: null, msg: 'request method should be ' + item.method})
+          return
         }
-        function connStack(connection, res, level) {
-          connection.query(sqlArray[level], (err, results, fields) => {
-            if (err) {
-              return connection.rollback(() => {
-                res.status(500).send({ status: res.statusCode, data: null, msg: 'transaction error. ' + err })
-                throw err
-              })
-            } else {
-              if ( level === sqlArray.length - 1) {
-                res.send({status: res.statusCode, data: results, msg: 'success.'})
-              } else {
-                console.log('>>>>>> ' + moment().format('YYYY-MM-DD HH:mm:SS') + ' stack ' + level)
-                console.log(sqlArray[level])
-                console.log(results)
-                connStack(connection, res, level + 1)
-              }
-            }
-          })
-        }
-        connection.beginTransaction((err) => {
+      }
+      let sqlList = assembleSql(req, res, item)
+      if (sqlList.length !== 0) {
+        pool.getConnection((err, connection) => {
           if (err) {
-            res.status(500).send({ status: res.statusCode, data: null, msg: 'transaction error. error: ' + err })
             throw err
           }
-          connStack(connection, res, 0)
-          connection.commit(function(err) {
+          function connStack(connection, res, index) {
+            connection.query(sqlList[index], (err, results, fields) => {
+              if (err) {
+                return connection.rollback(() => {
+                  res.status(500).send({status: res.statusCode, data: null, msg: 'transaction error.' + err})
+                  console.log(err)
+                })
+              } else {
+                if (index === sqlList.length - 1) {
+                  res.send({status: res.statusCode, data: results, msg: 'success.'})
+                } else {
+                  console.log('>>>>>> ' + moment().format('YYYY-MM-DD HH:mm:SS') + ' stack ' + index)
+                  console.log(sqlList[index])
+                  console.log(results)
+                  connStack(connection, res, index + 1)
+                }
+              }
+            })
+          }
+          connection.beginTransaction((err) => {
             if (err) {
-              return connection.rollback(function() {
-                res.status(500).send({ status: res.statusCode, data: null, msg: 'transaction error. error: ' + err })
-                throw err;
-              });
+              res.status(500).send({status: res.statusCode, data: null, msg: 'transaction error. error: ' + err})
+              throw err
             }
-          });
+            connStack(connection, res, 0)
+            connection.commit(function (err) {
+              if (err) {
+                return connection.rollback(function () {
+                  res.status(500).send({status: res.statusCode, data: null, msg: 'transaction error. error: ' + err})
+                  console.log(err)
+                });
+              }
+            });
+          })
+          connection.release()
         })
-        connection.release()
-      })
-    }
-    return
+      }
+    })
   })
-})
-
-const httpServer = http.createServer(app)
-httpServer.listen(config.http.port, config.http.listening)
-
-try {
-  const httpsServer = https.createServer({
-    key: fs.readFileSync(config.https.cert.key),
-    cert: fs.readFileSync(config.https.cert.cert)
-  }, app)
-  httpsServer.listen(config.https.port, config.https.listening)
-} catch (err) {
-  console.log('https cert is not setting or file can not access. https server will not be created.')
 }
+
+function runHttpServer(app) {
+  const httpServer = http.createServer(app)
+  httpServer.listen(config.http.port, config.http.listening)
+
+  try {
+    const httpsServer = https.createServer({
+      key: fs.readFileSync(config.https.cert.key),
+      cert: fs.readFileSync(config.https.cert.cert)
+    }, app)
+    httpsServer.listen(config.https.port, config.https.listening)
+  } catch (err) {
+    console.log('https cert is not setting or file can not access. https server will not be created.')
+  }
+}
+
+(() => {
+  const app = registerExpress()
+  registerAPIRouter(app)
+  runHttpServer(app)
+})()
