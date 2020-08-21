@@ -49,7 +49,8 @@ function registerExpress() {
 function registerAPIRouter(app) {
   const pool = mysql.createPool(config.database)
   function assembleSql(req, res, item) {
-    let sql = item.sql
+    const { middleware } = item
+    const sql = 'function' === typeof middleware ? middleware(req, item.sql): item.sql;
     let sqlList = []
     let argsErrorList = []
     if ('string' === typeof sql) {
@@ -59,31 +60,33 @@ function registerAPIRouter(app) {
     }
     sqlList.forEach((sql, index) => {
       let sqlArgs = sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
-      if (sqlArgs) {
+      if (0 < sqlArgs.length) {
         console.log('arguments: ' + sqlArgs.join(', '))
         if ('get' === item.method.toLowerCase()) {
-          sqlArgs.forEach((arg) => {
-            const sqlArg = arg.slice(2, arg.length)
-            let param = Reflect.get(req.query, sqlArg)
-            if (undefined === param) {
-              argsErrorList.push(sqlArg)
-            } else {
-              sql = sql.replace(arg, param)
-            }
-          })
+          sql = sql.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
+            (match) => {
+              const arg = match.slice(2, match.length)
+              const param = Reflect.get(req.query, arg)
+              if (undefined === param){
+                argsErrorList.push(arg)
+              }
+              return param
+            })
         } else {
-          sqlArgs.forEach((arg) => {
-            const sqlArg = arg.slice(2, arg.length)
-            let param = Reflect.get(req.query, sqlArg)
-            let field = Reflect.get(req.body, sqlArg)
-            if (undefined === field && undefined === param) {
-              argsErrorList.push(sqlArg)
-            } else if (field) {
-              sql = sql.replace(arg, field)
-            } else if (param) {
-              sql = sql.replace(arg, field)
-            }
-          })
+          sql = sql.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
+            (match) => {
+              const arg = match.slice(2, match.length)
+              const field = Reflect.get(req.body, arg)
+              const param = Reflect.get(req.query, arg)
+              if (undefined !== field) {
+                return field
+              }
+              if (undefined !== param){
+                return param
+              }
+              argsErrorList.push(arg)
+              return undefined
+            })
         }
       }
       sqlList[index] = sql
