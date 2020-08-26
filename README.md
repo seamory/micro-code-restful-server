@@ -74,15 +74,20 @@ https certs file. support the *.crt, *pem etc. file.
 
 **route**
 
-route path
+Route path
 
 **method**
 
-request method
+Request method
 
 **sql**
 
-the sql route path binding. use ?:field_name to bind the post or url arguments. if sql is a array, server will be create a sql transcation, and execution sequence is depend on the sql in which index in array. 
+The sql route path binding. use ?:field_name to bind the post or url arguments. if sql is a array, server will be create a sql transcation, and execution sequence is depend on the sql in which index in array.
+
+
+**middleware**
+
+ 
 
 ## New feature preview
 1. support the auth of request.
