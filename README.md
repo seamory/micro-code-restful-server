@@ -1,4 +1,4 @@
-# Micro-Code-Restful-Server
+# Micro Code Restful Server
 a useful tool for front developer. by sample setting (write a config file), and you will get a web-service backend. 
 
 ## Install
