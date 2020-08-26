@@ -3,40 +3,43 @@ a useful tool for front developer. by sample setting (write a config file), and 
 
 ## Install
 
-`npm install express moment mysql`
+`npm install`
 
 ## Run
-by configing as follow. run `node index.js`, you will get your own web-service backend to test your front web page.
 
-## Config
+befor run `node index.js`. you should set as follows. you will get your own web-service backend to test your front web page.
 
-### Config.json
+## Configs
 
-**path: config/Config.json**
+### config.js
 
-```json
-{
-    "database": {
-        "host": "localhost",
-        "port": "3306",
-        "user": "your_username",
-        "password": "your_password",
-        "database": "mysql"
-    },
-    "http": {
-        "listening": "0.0.0.0",
-        "port": "80"
-    },
-    "https": {
-        "listening_ip": "0.0.0.0",
-        "port": "443",
-        "cert": {
-            "key": "./certs/server.key",
-            "cert": "./certs/server.crt"
-        }
+**path: config/Config.js**
+
+```javascript
+module.exports = {
+  "database": {
+    "host": "localhost",
+    "port": "3306",
+    "user": "your_username",
+    "password": "your_password",
+    "database": "mysql"
+  },
+  "http": {
+    "listening": "0.0.0.0",
+    "port": 80
+  },
+  "https": {
+    "listening_ip": "0.0.0.0",
+    "port": 443,
+    "cert": {
+      "key": "",
+      "cert": ""
     }
+  }
 }
 ```
+
+> Server Core Config file. The file should in configs dir.
 
 **https.cert.key**
 
@@ -46,26 +49,24 @@ https certs key. only support the key file.
 
 https certs file. support the *.crt, *pem etc. file.
 
-> Server Core Config file. The file should in configs dir.
-
-### APIConfig.json
+### api-config.js
 
 **path: config/APIConfig.json**
 
-```json
-[
+```javascript
+module.exports = [
   {
-    "route": "/getUsers",
-    "method": "get",
-    "sql": "select * from users"
+    route: "",
+    method: "",
+    sql: ""
   },
   {
-    "route": "/group/close",
-    "method": "get, post",
-    "sql": [
-      "update users set username = '?:username' where id = ?:id",
-      "select * from user where id = ?:id"
-    ]
+    route: "",
+    method: "",
+    middleware: function (req) {
+      // ...
+      return []
+    }
   }
 ]
 ```
@@ -74,21 +75,32 @@ https certs file. support the *.crt, *pem etc. file.
 
 **route**
 
-Route path
+Route path. This argument must start of word `'/'`. 
+
+ex: `'/helloworld'`
 
 **method**
 
-Request method
+Request method. You can use single request method or multiple method both. If you use multiple method, between method you should split by a comma. 
+
+single ex: `get`, `post`, `delete`, `put`
+
+multiple ex: `get, post`, `post, put` 
 
 **sql**
 
-The sql route path binding. use ?:field_name to bind the post or url arguments. if sql is a array, server will be create a sql transcation, and execution sequence is depend on the sql in which index in array.
+The sql which bind to the route. you can use `?:field_name` to bind the post or url arguments.
 
+If sql is an array object, the server will be created a sql transaction, and execution sequence is depend on the sql in which index in the array object.
 
 **middleware**
 
- 
+Middleware makes user could do more advance action in the route. 
+
+The middleware function accept one argument `req`, the more information about `req` you could realize from express request.
+
+The middleware function return a sql which you can use bind grammar as above sql part guide. if the function structure has any errors, you must return an empty array object.
 
 ## New feature preview
 1. support the auth of request.
-2. rebuild by go language or rust language.
+2. support the result process.
