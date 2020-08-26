@@ -60,7 +60,7 @@ function registerAPIRouter(app) {
     }
     sqlList.forEach((sql, index) => {
       let sqlArgs = sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
-      if (0 < sqlArgs.length) {
+      if (sqlArgs && 0 < sqlArgs.length) {
         console.log('arguments: ' + sqlArgs.join(', '))
         if ('get' === item.method.toLowerCase()) {
           sql = sql.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
