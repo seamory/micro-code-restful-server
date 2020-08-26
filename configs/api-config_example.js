@@ -7,5 +7,13 @@ module.exports = [
     "route": "",
     "method": "",
     "sql": ""
+  },
+  {
+    route: "",
+    method: "",
+    middleware: function (req) {
+      // ...
+      return []
+    }
   }
 ]
