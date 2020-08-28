@@ -50,20 +50,22 @@ function registerAPIRouter(app) {
   const pool = mysql.createPool(config.database)
   function assembleSql(req, res, item) {
     const { middleware } = item
-    const sql = 'function' === typeof middleware ? middleware(req, item.sql): item.sql;
+    const sql = 'function' === typeof middleware ? middleware(req, item.sql): item.sql
+    const sqlListResult = []
+    const argsErrorList = []
     let sqlList = []
-    let argsErrorList = []
     if ('string' === typeof sql) {
       sqlList.push(sql)
     } else {
       sqlList = sql
     }
     sqlList.forEach((sql, index) => {
-      let sqlArgs = sql.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
+      let sqlCopied = sql
+      let sqlArgs = sqlCopied.match(/((\?:[a-z|A-Z|0-9|_]*))/ig)
       if (sqlArgs && 0 < sqlArgs.length) {
         console.log('arguments: ' + sqlArgs.join(', '))
         if ('get' === item.method.toLowerCase()) {
-          sql = sql.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
+          sqlCopied = sqlCopied.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
             (match) => {
               const arg = match.slice(2, match.length)
               const param = Reflect.get(req.query, arg)
@@ -73,7 +75,7 @@ function registerAPIRouter(app) {
               return param
             })
         } else {
-          sql = sql.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
+          sqlCopied = sqlCopied.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,
             (match) => {
               const arg = match.slice(2, match.length)
               const field = Reflect.get(req.body, arg)
@@ -89,8 +91,8 @@ function registerAPIRouter(app) {
             })
         }
       }
-      sqlList[index] = sql
-      console.log(sql)
+      sqlListResult.push(sqlCopied)
+      console.log(sqlCopied)
     })
     if (argsErrorList.length > 0) {
       res.status(417).send({
@@ -100,7 +102,7 @@ function registerAPIRouter(app) {
       })
       return []
     }
-    return sqlList
+    return sqlListResult
   }
   apiConfig.forEach((item) => {
     app.all(item.route, (req, res) => {
