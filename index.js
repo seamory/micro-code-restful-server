@@ -16,7 +16,7 @@ const config = require('./configs/config.js')
 
 function registerExpress() {
   const app = express()
-
+  
   app.use(express.json())
   app.use(express.urlencoded({extended: true}))
   app.use((req, res, next) => {
@@ -25,7 +25,7 @@ function registerExpress() {
     console.log("request query:", req.query, "request body:", req.body)
     next()
   })
-
+  
   app.all('*', function (req, res, next) {
     res.header("Access-Control-Allow-Origin", req.headers.origin)
     res.header("Access-Control-Allow-Credentials", true)
@@ -38,19 +38,20 @@ function registerExpress() {
       next();
     }
   });
-
+  
   app.all('/', (req, res) => {
     res.send('express is starting, your hostname is:' + req.hostname)
   })
-
+  
   return app
 }
 
 function registerAPIRouter(app) {
   const pool = mysql.createPool(config.database)
+  
   function assembleSql(req, res, item) {
-    const { middleware } = item
-    const sql = 'function' === typeof middleware ? middleware(req, item.sql): item.sql
+    const {middleware} = item
+    const sql = 'function' === typeof middleware ? middleware(req, item.sql) : item.sql
     const sqlListResult = []
     const argsErrorList = []
     let sqlList = []
@@ -69,7 +70,7 @@ function registerAPIRouter(app) {
             (match) => {
               const arg = match.slice(2, match.length)
               const param = Reflect.get(req.query, arg)
-              if (undefined === param){
+              if (undefined === param) {
                 argsErrorList.push(arg)
               }
               return param
@@ -83,7 +84,7 @@ function registerAPIRouter(app) {
               if (undefined !== field) {
                 return field
               }
-              if (undefined !== param){
+              if (undefined !== param) {
                 return param
               }
               argsErrorList.push(arg)
@@ -104,6 +105,7 @@ function registerAPIRouter(app) {
     }
     return sqlListResult
   }
+  
   apiConfig.forEach((item) => {
     app.all(item.route, (req, res) => {
       if (req.method.toLowerCase() !== 'options') {
@@ -118,6 +120,7 @@ function registerAPIRouter(app) {
           if (err) {
             throw err
           }
+          
           function connStack(connection, res, index) {
             connection.query(sqlList[index], (err, results, fields) => {
               if (err) {
@@ -137,6 +140,7 @@ function registerAPIRouter(app) {
               }
             })
           }
+          
           connection.beginTransaction((err) => {
             if (err) {
               res.status(500).send({status: res.statusCode, data: null, msg: 'transaction error. error: ' + err})
@@ -160,15 +164,19 @@ function registerAPIRouter(app) {
 }
 
 function runHttpServer(app) {
-  const httpServer = http.createServer(app)
-  httpServer.listen(config.http.port, config.http.listening)
-
   try {
+    const httpServer = http.createServer(app)
+    httpServer.listen(config.http.port, config.http.listening)
+    
     const httpsServer = https.createServer({
       key: fs.readFileSync(config.https.cert.key),
       cert: fs.readFileSync(config.https.cert.cert)
     }, app)
     httpsServer.listen(config.https.port, config.https.listening)
+    
+    console.log(`api server start.`)
+    console.log(`http: ${config.http.listening}:${config.http.port}`)
+    console.log(`https: ${config.https.listening}:${config.https.port}`)
   } catch (err) {
     console.log('https cert is not setting or file can not access. https server will not be created.')
   }
