@@ -13,7 +13,6 @@ const moment = require('moment')
 const apiConfig = require('./configs/api-config.js')
 const config = require('./configs/config.js')
 
-
 function registerExpress() {
   const app = express()
   
@@ -70,10 +69,11 @@ function registerAPIRouter(app) {
             (match) => {
               const arg = match.slice(2, match.length)
               const param = Reflect.get(req.query, arg)
-              if (undefined === param) {
-                argsErrorList.push(arg)
+              if (undefined !== param) {
+                return param
               }
-              return param
+              argsErrorList.push(arg)
+              return undefined
             })
         } else {
           sqlCopied = sqlCopied.replace(/(\?:[a-z|A-Z|0-9|_]*)/ig,

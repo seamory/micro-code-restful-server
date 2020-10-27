@@ -6,3 +6,5 @@ node_modules
 certs/
 configs/api-config.js
 configs/config.js
+configs/effect-monitor.js
+configs/sql/
